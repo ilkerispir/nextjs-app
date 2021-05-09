@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Avatar from '@material-ui/core/Avatar';
 import Button from '@material-ui/core/Button';
 import CssBaseline from '@material-ui/core/CssBaseline';
@@ -12,6 +12,10 @@ import Grid from '@material-ui/core/Grid';
 import LockOutlinedIcon from '@material-ui/icons/LockOutlined';
 import Typography from '@material-ui/core/Typography';
 import { makeStyles } from '@material-ui/core/styles';
+import { SnackbarProvider, useSnackbar } from 'notistack';
+import config from '../../config';
+import { LinearProgress } from '@material-ui/core';
+import axios from 'axios';
 
 function Copyright() {
   return (
@@ -57,10 +61,92 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function SignInSide() {
+function Login(props) {
+  console.log(props);
   const classes = useStyles();
+  const { enqueueSnackbar } = useSnackbar();
+
+  const handleLogin = () => {
+    // variant could be success, error, warning, info, or default
+    enqueueSnackbar('This is a success message!', { "variant": "success" });
+  };
 
   return (
+    <Button
+    fullWidth
+    variant="contained"
+    color="primary"
+    className={classes.submit}
+    onClick={handleLogin}
+  >
+    Sign In
+  </Button>
+  );
+}
+
+export default function SignInSide(props) {
+  const classes = useStyles();
+
+  const { setIsAuth, setCookie } = props;
+
+  const [isLoading, setIsLoading] = useState(false);
+
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+
+  const openNotification = (type, title, message) => {
+    console.log(console.log({ type, title, message }));
+  };
+
+  const handleLogin = async function () {
+    if (!username) {return openNotification("warning", "Login Error", "Username parameter is missing!");}
+    if (!password) {return openNotification("warning", "Login Error", "Password parameter is missing!");}
+
+    setIsLoading(true);
+
+    try {
+      const response = await axios({
+        url: config.serverUrl,
+        method: "GET",
+        params: {
+          function: "login",
+          email: username,
+          password: password
+        }
+      });
+
+      if(!response.data.login) {
+        throw new Error("Email or password is wrong");
+      }
+
+      setIsLoading(false);
+
+      const session = await response.data.session;
+      setCookie("session", session, { maxAge: 86400 });
+      setCookie("email", username, { maxAge: 86400 });
+      setIsAuth(true);
+
+      openNotification("info", "Login successed!");
+    } catch(error) {
+      console.log(error.message);
+      setIsLoading(false);
+
+      const { response } = error;
+      if (response) {
+        const { request, ...errorObject } = response;
+        console.log(errorObject);
+        return openNotification("warning", "Login Error", errorObject.data.message);
+      }
+      else {
+        return openNotification("error", "Login Error", error.message);
+      }
+    }
+  }
+
+
+  return (
+    isLoading ? 
+    <LinearProgress /> :
     <Grid container component="main" className={classes.root}>
       <CssBaseline />
       <Grid item xs={false} sm={4} md={7} className={classes.image} />
@@ -83,6 +169,7 @@ export default function SignInSide() {
               name="email"
               autoComplete="email"
               autoFocus
+              onChange={e => setUsername(e.target.value)}
             />
             <TextField
               variant="outlined"
@@ -94,17 +181,18 @@ export default function SignInSide() {
               type="password"
               id="password"
               autoComplete="current-password"
+              onChange={e => setPassword(e.target.value)}
             />
             <FormControlLabel
               control={<Checkbox value="remember" color="primary" />}
               label="Remember me"
             />
             <Button
-              type="submit"
               fullWidth
               variant="contained"
               color="primary"
               className={classes.submit}
+              onClick={handleLogin}
             >
               Sign In
             </Button>

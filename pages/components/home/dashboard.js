@@ -10,18 +10,20 @@ import List from '@material-ui/core/List';
 import Typography from '@material-ui/core/Typography';
 import Divider from '@material-ui/core/Divider';
 import IconButton from '@material-ui/core/IconButton';
-import Badge from '@material-ui/core/Badge';
 import Container from '@material-ui/core/Container';
 import Grid from '@material-ui/core/Grid';
 import Paper from '@material-ui/core/Paper';
 import Link from '@material-ui/core/Link';
 import MenuIcon from '@material-ui/icons/Menu';
 import ChevronLeftIcon from '@material-ui/icons/ChevronLeft';
-import NotificationsIcon from '@material-ui/icons/Notifications';
+import ExitToAppIcon from '@material-ui/icons/ExitToApp';
 import { mainListItems, secondaryListItems } from './list';
 import Chart from './chart';
 import Deposits from './deposit';
 import Orders from './order';
+import axios from 'axios';
+import config from '../../config';
+import { useCookies } from 'react-cookie';
 
 function Copyright() {
   return (
@@ -117,16 +119,38 @@ const useStyles = makeStyles((theme) => ({
   },
 }));
 
-export default function Dashboard() {
+export default function Dashboard(props) {
   const classes = useStyles();
   const [open, setOpen] = React.useState(true);
+  const [cookies, setCookie, removeCookie] = useCookies(['session']);
+
   const handleDrawerOpen = () => {
     setOpen(true);
   };
+
   const handleDrawerClose = () => {
     setOpen(false);
   };
+
   const fixedHeightPaper = clsx(classes.paper, classes.fixedHeight);
+
+  const handleLogout = async () => {
+    try {
+      await axios({
+        url: config.serverUrl,
+        method: "GET",
+        params: {
+          function: "logout",
+          session: cookies.session
+        }
+      });
+      removeCookie("session");
+      removeCookie("email");
+      props.setIsAuth(false);
+    } catch (err) {
+      console.log(err.message);
+    } 
+  };
 
   return (
     <div className={classes.root}>
@@ -145,10 +169,12 @@ export default function Dashboard() {
           <Typography component="h1" variant="h6" color="inherit" noWrap className={classes.title}>
             Dashboard
           </Typography>
-          <IconButton color="inherit">
-            <Badge badgeContent={4} color="secondary">
-              <NotificationsIcon />
-            </Badge>
+          <IconButton 
+          color="secondary"
+          aria-label="Logout"
+          onClick={handleLogout}
+          >
+            <ExitToAppIcon />
           </IconButton>
         </Toolbar>
       </AppBar>
